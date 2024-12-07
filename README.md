@@ -2,14 +2,14 @@
 
 Hunyuan_video 是一款适用于 chatgpt-on-wechat 的视频生成插件，基于SiliconFlow平台的混元视频生成功能，支持通过文本描述生成视频。
 
-官方混元视频体验地址: https://cloud.siliconflow.cn/playground/text-to-video
+硅基平台的混元视频体验地址: https://cloud.siliconflow.cn/playground/text-to-video
 
 该插件使用起来非常简单，只需按以下步骤操作即可。
 
 ### 一. 获取API密钥
 1. 注册并登录 Silicon Flow 平台，如果你还没有注册过请从这个地址注册https://cloud.siliconflow.cn/i/IvfkhvET
 
-2. 在个人设置中获取 API Key，复制备用
+2. 在个人主页左侧点击钥匙🔑标志进入API密钥设置页面，获取 API Key复制备用
 
 ### 二. 安装插件和配置config文件
 1. 在微信机器人聊天窗口输入命令：
