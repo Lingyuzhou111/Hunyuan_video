@@ -1,0 +1,6 @@
+{
+    "api_key": "your-siliconflow-api-key-here",
+    "translate_api_url": "https://api.siliconflow.cn/v1/chat/completions",
+    "translate_api_key": "your-siliconflow-api-key-here",
+    "translate_model": "01-ai/Yi-1.5-9B-Chat-16K"
+}
