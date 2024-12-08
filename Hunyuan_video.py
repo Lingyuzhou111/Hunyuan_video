@@ -140,18 +140,26 @@ class HunyuanVideo(Plugin):
 
             # 获取正确的channel_id和from_user_id
             channel_id = e_context['context'].get('channel_id', 'default')
-            from_user_id = e_context['context'].get('session_id', 'default')
+            is_group = e_context['context'].kwargs.get('isgroup', False)
+            
+            # 根据是否为群聊选择正确的接收者
+            if is_group:
+                receiver = e_context['context'].kwargs.get('receiver')  # 群聊ID
+                session_id = receiver  # 在群聊中，session_id应该是群ID
+            else:
+                receiver = e_context['context'].get('session_id')  # 私聊用户ID
+                session_id = receiver
 
             # 发送预计等待时间
             max_retries = 60  # 最多尝试60次，约10分钟
             retry_interval = 10  # 每10秒检查一次
             estimated_time = (max_retries * retry_interval) // 60  # 转换为分钟
-            self._send_result_message(channel_id, from_user_id, 
-                f"视频正在生成中，预计还需等待约 {estimated_time} 分钟...")
+            self._send_result_message(channel_id, receiver, session_id,
+                f"视频正在生成中，预计还需等待约 {estimated_time} 分钟...", is_group)
 
             # 启动异步任务查询视频状态
             threading.Thread(target=self._check_video_status, 
-                           args=(request_id, channel_id, from_user_id)).start()
+                           args=(request_id, channel_id, receiver, session_id, is_group)).start()
 
         except Exception as e:
             logger.error(f"[HunyuanVideo] 处理请求失败: {e}")
@@ -178,7 +186,7 @@ class HunyuanVideo(Plugin):
             logger.error(f"[HunyuanVideo] 提交任务失败: {e}")
             raise
 
-    def _check_video_status(self, request_id, channel_id, user_id):
+    def _check_video_status(self, request_id, channel_id, receiver, session_id, is_group):
         """检查视频生成状态"""
         url = "https://api.siliconflow.cn/v1/video/status"
         headers = {
@@ -203,7 +211,7 @@ class HunyuanVideo(Plugin):
                 # 如果位置发生变化，通知用户
                 if current_position != last_position:
                     progress_msg = f"视频生成进行中... 当前队列位置: {current_position}"
-                    self._send_result_message(channel_id, user_id, progress_msg)
+                    self._send_result_message(channel_id, receiver, session_id, progress_msg, is_group)
                     last_position = current_position
 
                 if current_status in ['Success', 'Succeed']:  # 支持两种成功状态
@@ -213,14 +221,14 @@ class HunyuanVideo(Plugin):
                         for i, video_info in enumerate(videos):
                             video_url = video_info.get('url')
                             if video_url:
-                                self.download_and_send_video(video_url, channel_id, user_id)
+                                self.download_and_send_video(video_url, channel_id, receiver, session_id, is_group)
                         return
                     else:
-                        self._send_result_message(channel_id, user_id, "视频生成完成，但未获取到视频链接")
+                        self._send_result_message(channel_id, receiver, session_id, "视频生成完成，但未获取到视频链接", is_group)
                         return
                 elif current_status == 'Failed':
                     reason = result.get('reason', '未知原因')
-                    self._send_result_message(channel_id, user_id, f"视频生成失败: {reason}")
+                    self._send_result_message(channel_id, receiver, session_id, f"视频生成失败: {reason}", is_group)
                     return
                 elif current_status == 'InProgress':
                     logger.debug(f"[HunyuanVideo] 任务 {request_id} 正在处理中... (位置: {current_position})")
@@ -232,9 +240,9 @@ class HunyuanVideo(Plugin):
             
             time.sleep(retry_interval)
 
-        self._send_result_message(channel_id, user_id, "视频生成超时，请稍后重试")
+        self._send_result_message(channel_id, receiver, session_id, "视频生成超时，请稍后重试", is_group)
 
-    def download_and_send_video(self, video_url, channel_id, user_id):
+    def download_and_send_video(self, video_url, channel_id, receiver, session_id, is_group):
         """下载并发送视频"""
         try:
             # 创建存储目录（如果不存在）
@@ -257,9 +265,9 @@ class HunyuanVideo(Plugin):
             context.type = ContextType.VIDEO
             context.content = video_path
             context.kwargs = {
-                'isgroup': False,
-                'receiver': user_id,
-                'session_id': user_id,
+                'isgroup': is_group,
+                'receiver': receiver,
+                'session_id': session_id,
                 'channel_id': channel_id
             }
 
@@ -274,21 +282,21 @@ class HunyuanVideo(Plugin):
             wechat_channel.send(reply, context)
 
             # 发送成功提示
-            self._send_result_message(channel_id, user_id, "视频已发送，请查收！")
+            self._send_result_message(channel_id, receiver, session_id, "视频已发送，请查收！", is_group)
 
         except Exception as e:
             logger.error(f"[HunyuanVideo] 下载或发送视频失败: {e}")
-            self._send_result_message(channel_id, user_id, "视频下载或发送失败，请稍后重试。")
+            self._send_result_message(channel_id, receiver, session_id, "视频下载或发送失败，请稍后重试。", is_group)
 
-    def _send_result_message(self, channel_id, user_id, message):
+    def _send_result_message(self, channel_id, receiver, session_id, message, is_group=False):
         """发送结果消息"""
         context = Context()
         context.type = ContextType.TEXT
         context.content = message
         context.kwargs = {
-            'isgroup': False,
-            'receiver': user_id,
-            'session_id': user_id,
+            'isgroup': is_group,
+            'receiver': receiver,
+            'session_id': session_id,
             'channel_id': channel_id
         }
 
