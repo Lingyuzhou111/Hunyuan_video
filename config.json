@@ -2,5 +2,18 @@
     "api_key": "your-siliconflow-api-key-here",
     "translate_api_url": "https://api.siliconflow.cn/v1/chat/completions",
     "translate_api_key": "your-siliconflow-api-key-here",
-    "translate_model": "01-ai/Yi-1.5-9B-Chat-16K"
+    "translate_model": "01-ai/Yi-1.5-9B-Chat-16K",
+    "commands": {
+        "video_prefix": "混元视频",
+        "balance_query": ["硅基余额查询", "硅基余额"],
+        "model_list": {
+            "prefix": ["硅基模型列表", "硅基模型"],
+            "types": {
+                "text": "文本系列",
+                "image": "图像系列",
+                "audio": "语音系列",
+                "video": "视频系列"
+            }
+        }
+    }
 }
