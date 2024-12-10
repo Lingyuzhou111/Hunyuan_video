@@ -23,9 +23,24 @@ class HunyuanVideo(Plugin):
         self.handlers[Event.ON_HANDLE_CONTEXT] = self.on_handle_context
         self.config_data = None
         self.video_tasks = {}  # 存储未完成的任务
-        self.command_prefix = "混元视频"
+        self.command_prefix = None
+        self.balance_commands = []
+        self.model_list_commands = []
+        self.model_types = {}
         if self.load_config():
             logger.info("[HunyuanVideo] 配置加载成功")
+            # 从配置文件加载命令
+            commands = self.config_data.get('commands', {})
+            self.command_prefix = commands.get('video_prefix', '混元视频')
+            self.balance_commands = commands.get('balance_query', ['硅基余额查询'])
+            if isinstance(self.balance_commands, str):
+                self.balance_commands = [self.balance_commands]
+            
+            model_list_config = commands.get('model_list', {})
+            self.model_list_commands = model_list_config.get('prefix', ['硅基模型列表'])
+            if isinstance(self.model_list_commands, str):
+                self.model_list_commands = [self.model_list_commands]
+            self.model_types = model_list_config.get('types', {})
         logger.info(f"[{__class__.__name__}] 初始化完成")
 
     def load_config(self):
@@ -114,8 +129,19 @@ class HunyuanVideo(Plugin):
             logger.error("[HunyuanVideo] 配置未加载，无法处理请求")
             return
 
-        content = e_context['context'].content
+        content = e_context['context'].content.strip()
         logger.debug(f"[HunyuanVideo] 收到消息: {content}")
+
+        # 处理查询余额命令
+        if content in self.balance_commands:
+            self._handle_balance_query(e_context)
+            return
+
+        # 处理模型列表查询命令
+        for cmd in self.model_list_commands:
+            if content.startswith(cmd):
+                self._handle_model_list_query(e_context, content, cmd)
+                return
 
         if not content.startswith(self.command_prefix):
             return
@@ -320,12 +346,82 @@ class HunyuanVideo(Plugin):
         e_context['reply'] = reply
         e_context.action = EventAction.BREAK_PASS
 
+    def _handle_balance_query(self, e_context: Context):
+        """处理查询余额请求"""
+        try:
+            url = "https://api.siliconflow.cn/v1/user/info"
+            headers = {
+                "Authorization": f"Bearer {self.config_data['api_key']}"
+            }
+            
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('code') == 20000 and result.get('status'):
+                data = result.get('data', {})
+                balance_info = (
+                    f"账号状态：{data.get('status', '未知')}\n"
+                    f"总余额：{data.get('totalBalance', '0')} 元\n"
+                    f"充值余额：{data.get('chargeBalance', '0')} 元\n"
+                    f"赠送余额：{data.get('balance', '0')} 元"
+                )
+                self._send_text_message(e_context, balance_info)
+            else:
+                self._send_text_message(e_context, "查询余额失败，请稍后重试")
+                
+        except Exception as e:
+            logger.error(f"[HunyuanVideo] 查询余额失败: {e}")
+            self._send_text_message(e_context, f"查询余额失败: {str(e)}")
+
+    def _handle_model_list_query(self, e_context: Context, content: str, command: str):
+        """处理模型列表查询请求"""
+        try:
+            # 解析查询类型
+            query_type = content[len(command):].strip()
+            model_type = None
+            
+            # 根据用户输入确定查询类型
+            for api_type, display_name in self.model_types.items():
+                if query_type == display_name:
+                    model_type = api_type
+                    break
+            
+            # 准备API请求
+            url = "https://api.siliconflow.cn/v1/models"
+            headers = {
+                "Authorization": f"Bearer {self.config_data['api_key']}"
+            }
+            params = {"type": model_type} if model_type else {}
+            
+            # 发送请求
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('object') == 'list' and 'data' in result:
+                # 提取模型名称列表
+                models = [model['id'] for model in result['data']]
+                
+                # 格式化输出信息
+                type_text = f"[{query_type}]" if query_type else "[所有系列]"
+                model_list = '\n'.join(models)
+                response_text = f"硅基模型列表{type_text}：\n{model_list}"
+                
+                self._send_text_message(e_context, response_text)
+            else:
+                self._send_text_message(e_context, "获取模型列表失败，返回数据格式异常")
+                
+        except Exception as e:
+            logger.error(f"[HunyuanVideo] 获取模型列表失败: {e}")
+            self._send_text_message(e_context, f"获取模型列表失败: {str(e)}")
+
     def get_help_text(self, **kwargs):
         """获取插件帮助信息"""
-        help_text = "混元视频生成插件使用指南：\n"
-        help_text += f"1. 使用 {self.command_prefix} 作为命令前缀\n"
-        help_text += "2. 在前缀后输入想要生成的视频描述，描述要具体且清晰，包含场景、动作、氛围等细节\n"
-        help_text += "3. 视频生成可能需要一些时间，请耐心等待视频生成完成\n"
-        help_text += "4. 示例：\n"
-        help_text += "   混元视频 一只可爱的猫咪在草地上奔跑\n"
+        help_text = "混元视频插件指令：\n\n"
+        help_text += "1. 生成视频：混元视频 + 视频描述\n"
+        help_text += "   示例：混元视频 一只可爱的猫咪在草地上奔跑\n"
+        help_text += "2. 查询余额：硅基余额查询\n"
+        help_text += "3. 查询模型：硅基模型列表 + [可选]模型类型\n"
+        help_text += "   支持类型：文本系列/图像系列/语音系列/视频系列"
         return help_text
