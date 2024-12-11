@@ -362,8 +362,8 @@ class HunyuanVideo(Plugin):
                 data = result.get('data', {})
                 balance_info = (
                     f"🚥账号状态：{data.get('status', '未知')}\n"
-                    f"💸总余额：{data.get('totalBalance', '0')} 元\n"
-                    f"💰 充值余额：{data.get('chargeBalance', '0')} 元\n"
+                    f"💸可用余额：{data.get('totalBalance', '0')} 元\n"
+                    f"💰充值余额：{data.get('chargeBalance', '0')} 元\n"
                     f"🎁赠送余额：{data.get('balance', '0')} 元"
                 )
                 self._send_text_message(e_context, balance_info)
