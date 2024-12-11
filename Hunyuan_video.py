@@ -361,10 +361,10 @@ class HunyuanVideo(Plugin):
             if result.get('code') == 20000 and result.get('status'):
                 data = result.get('data', {})
                 balance_info = (
-                    f"账号状态：{data.get('status', '未知')}\n"
-                    f"总余额：{data.get('totalBalance', '0')} 元\n"
-                    f"充值余额：{data.get('chargeBalance', '0')} 元\n"
-                    f"赠送余额：{data.get('balance', '0')} 元"
+                    f"🚥账号状态：{data.get('status', '未知')}\n"
+                    f"💸总余额：{data.get('totalBalance', '0')} 元\n"
+                    f"💰 充值余额：{data.get('chargeBalance', '0')} 元\n"
+                    f"🎁赠送余额：{data.get('balance', '0')} 元"
                 )
                 self._send_text_message(e_context, balance_info)
             else:
@@ -422,6 +422,5 @@ class HunyuanVideo(Plugin):
         help_text += "1. 生成视频：混元视频 + 视频描述\n"
         help_text += "   示例：混元视频 一只可爱的猫咪在草地上奔跑\n"
         help_text += "2. 查询余额：硅基余额查询\n"
-        help_text += "3. 查询模型：硅基模型列表 + [可选]模型类型\n"
-        help_text += "   支持类型：文本系列/图像系列/语音系列/视频系列"
+        help_text += "3. 查询模型：硅基模型列表 + 文本系列/图像系列/语音系列/视频系列\n"
         return help_text
